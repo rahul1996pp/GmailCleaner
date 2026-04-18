@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GmailCleaner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap"/>
+<style>
+:root {
+  --bg:        #0d0f14;
+  --surface:   #161921;
+  --panel:     #1e2230;
+  --border:    #2a2f3d;
+  --muted:     #3a4055;
+  --text:      #e2e5ee;
+  --dim:       #8890a8;
+  --accent:    #4f7dff;
+  --accent2:   #7c5cff;
+  --green:     #3ecf8e;
+  --red:       #ff4f4f;
+  --orange:    #ff9a3c;
+  --yellow:    #f0c040;
+  --pink:      #ff5fa0;
+  --teal:      #20d5c4;
+  --mono:      'Space Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+  --radius:    8px;
+  --trans:     0.18s ease;
+}
+/* Light theme */
+[data-theme="light"] {
+  --bg:        #f4f5f7;
+  --surface:   #ffffff;
+  --panel:     #eef0f4;
+  --border:    #d8dce6;
+  --muted:     #b0b8c9;
+  --text:      #1a1d26;
+  --dim:       #5f6880;
+}
+[data-theme="light"] .modal-overlay { background: rgba(0,0,0,.35); }
+[data-theme="light"] .account-menu { box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+[data-theme="light"] .move-menu { box-shadow: 0 -4px 16px rgba(0,0,0,.1); }
+[data-theme="light"] #toast { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+[data-theme="light"] .ai-toggle { box-shadow: 0 4px 16px rgba(79,125,255,.25); }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--border); }
+[data-theme="light"] .saved-acct-card:hover { background: rgba(79,125,255,.04); }
+
+/* Theme toggle */
+.theme-toggle { background: none; border: 1px solid var(--border); color: var(--dim); cursor: pointer; font-size: 16px; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all var(--trans); flex-shrink: 0; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; font-size: 14px; overflow-x: hidden; }
+
+/* ── Header ── */
+header { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; padding: 0 24px; height: 56px; position: sticky; top: 0; z-index: 100; }
+.logo { font-family: var(--mono); font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.logo span { color: var(--accent); }
+.status-pill { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 99px; padding: 4px 12px 4px 8px; font-size: 12px; font-family: var(--mono); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background var(--trans); }
+.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.red { background: var(--red); }
+.dot.pulse { background: var(--orange); animation: pulse 1s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+header .spacer { flex: 1; }
+
+/* ── Buttons ── */
+.btn { font-family: var(--mono); font-size: 12px; font-weight: 700; padding: 7px 16px; border-radius: var(--radius); border: none; cursor: pointer; transition: all var(--trans); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #6b91ff; transform: translateY(-1px); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { background: #ff6b6b; }
+.btn-ghost { background: transparent; color: var(--dim); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sm { padding: 4px 10px; font-size: 10px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+/* ── Layout ── */
+.app { display: grid; grid-template-columns: 260px 1fr 320px; height: calc(100vh - 56px); }
+.app.ai-closed { grid-template-columns: 260px 1fr 0px; }
+
+/* ── Sidebar ── */
+aside { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 0; }
+.sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+.sidebar-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; padding: 8px 8px 4px; display: flex; align-items: center; justify-content: space-between; }
+.filter-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: var(--radius); background: none; border: none; color: var(--dim); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: all var(--trans); text-align: left; }
+.filter-btn:hover { background: var(--panel); color: var(--text); }
+.filter-btn.active { background: var(--panel); color: var(--accent); }
+.filter-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.filter-count { margin-left: auto; font-family: var(--mono); font-size: 11px; background: var(--muted); color: var(--text); border-radius: 99px; padding: 1px 7px; min-width: 22px; text-align: center; }
+.divider { height: 1px; background: var(--border); margin: 10px 12px; }
+
+/* Domain sort */
+.domain-sort-row { display: flex; gap: 4px; padding: 0 4px 6px; }
+.domain-sort-btn { flex: 1; padding: 4px 6px; font-family: var(--mono); font-size: 9px; text-transform: uppercase; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; color: var(--dim); cursor: pointer; transition: all var(--trans); text-align: center; }
+.domain-sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+.domain-sort-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Domain rows */
+.domain-row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 10px; border-radius: var(--radius); background: none; border: none; color: var(--dim); font-size: 12px; cursor: pointer; transition: all var(--trans); }
+.domain-row:hover { background: var(--panel); color: var(--text); }
+.domain-row.active { background: var(--panel); color: var(--accent); }
+.domain-row input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; }
+.domain-row .domain-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.domain-select-all-row { display: flex; align-items: center; gap: 6px; padding: 6px 10px; margin-bottom: 4px; }
+.domain-select-all-row input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; }
+.domain-select-all-row label { font-size: 11px; color: var(--dim); cursor: pointer; font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ── Main content ── */
+main { display: flex; flex-direction: column; overflow: hidden; }
+.toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; flex-wrap: wrap; }
+.search-box { flex: 1; max-width: 340px; position: relative; }
+.search-box input { width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--sans); font-size: 13px; padding: 7px 12px 7px 32px; outline: none; transition: border-color var(--trans); }
+.search-box input:focus { border-color: var(--accent); }
+.search-box .si { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 14px; }
+.select-all-wrap { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; }
+.toolbar-spacer { flex: 1; }
+.selected-count { font-family: var(--mono); font-size: 12px; color: var(--orange); display: none; }
+.selected-count.show { display: block; }
+
+/* View toggle */
+.view-toggle { display: flex; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.view-toggle button { background: none; border: none; color: var(--dim); font-family: var(--mono); font-size: 10px; padding: 5px 10px; cursor: pointer; transition: all var(--trans); text-transform: uppercase; }
+.view-toggle button:hover { color: var(--text); }
+.view-toggle button.active { background: var(--accent); color: #fff; }
+.view-toggle button + button { border-left: 1px solid var(--border); }
+
+/* Select-all banner */
+.select-all-banner { display: none; align-items: center; justify-content: center; gap: 8px; padding: 8px 20px; background: rgba(79,125,255,.08); border-bottom: 1px solid rgba(79,125,255,.2); font-size: 13px; color: var(--accent); flex-shrink: 0; }
+.select-all-banner.show { display: flex; }
+.select-all-banner a { color: var(--accent); text-decoration: underline; cursor: pointer; font-weight: 600; }
+
+/* Bulk bar */
+.bulk-bar { display: none; align-items: center; gap: 10px; padding: 8px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.bulk-bar.show { display: flex; }
+.bulk-bar .bulk-label { font-family: var(--mono); font-size: 12px; color: var(--orange); font-weight: 700; }
+.bulk-bar .bulk-spacer { flex: 1; }
+
+/* Suggestion bar */
+.suggestion-bar { display: none; align-items: center; gap: 10px; padding: 8px 20px; background: rgba(255,154,60,.06); border-bottom: 1px solid rgba(255,154,60,.15); flex-shrink: 0; }
+.suggestion-bar.show { display: flex; }
+.suggestion-bar .sug-label { font-family: var(--mono); font-size: 12px; color: var(--orange); font-weight: 700; }
+.suggestion-bar .sug-text { font-size: 12px; color: var(--dim); }
+
+/* Email list */
+.email-list-wrap { flex: 1; overflow-y: auto; }
+.email-list { list-style: none; }
+.email-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background var(--trans); position: relative; }
+.email-row:hover { background: var(--panel); }
+.email-row.selected { background: rgba(79,125,255,.08); }
+.email-row.suggested { border-left: 3px solid var(--orange); }
+.email-row input[type="checkbox"] { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.email-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; font-weight: 700; flex-shrink: 0; text-transform: uppercase; }
+.email-body { flex: 1; min-width: 0; }
+.email-from { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.email-from .domain-tag { font-family: var(--mono); font-size: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--dim); margin-left: 6px; }
+.email-subject { font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; min-width: 80px; }
+.email-date { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.cat-badge { font-size: 10px; font-family: var(--mono); border-radius: 4px; padding: 2px 6px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.attach-icon { font-size: 11px; color: var(--dim); }
+.unread-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.confidence-bar { width: 40px; height: 3px; background: var(--border); border-radius: 2px; margin-top: 2px; }
+.confidence-fill { height: 100%; border-radius: 2px; }
+.sug-badge { font-size: 9px; font-family: var(--mono); background: rgba(255,154,60,.15); color: var(--orange); border-radius: 3px; padding: 1px 4px; }
+
+/* Compact view */
+.email-list.compact .email-row { padding: 6px 20px; gap: 8px; }
+.email-list.compact .email-avatar { display: none; }
+.email-list.compact .email-from { font-size: 12px; }
+.email-list.compact .email-subject { font-size: 12px; }
+
+/* States */
+.state-view { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; color: var(--muted); text-align: center; padding: 40px; }
+.state-view .icon { font-size: 48px; }
+.state-view h3 { color: var(--dim); font-size: 16px; }
+.state-view p { font-size: 13px; max-width: 300px; line-height: 1.5; }
+
+/* Progress bar */
+.progress-bar { height: 3px; background: var(--border); position: relative; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .4s ease; position: relative; }
+.progress-fill::after { content: ''; position: absolute; right: 0; top: 0; width: 40px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.4)); animation: shimmer .8s ease infinite; }
+@keyframes shimmer { 0%{opacity:0}50%{opacity:1}100%{opacity:0} }
+
+/* Stats bar */
+.stats-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; flex-shrink: 0; }
+.stat-item { display: flex; flex-direction: column; align-items: center; padding: 10px 20px; border-right: 1px solid var(--border); min-width: 90px; }
+.stat-n { font-family: var(--mono); font-size: 18px; font-weight: 700; }
+.stat-l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* Toast */
+#toast { position: fixed; bottom: 24px; right: 24px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; font-size: 13px; z-index: 999; max-width: 320px; opacity: 0; transform: translateY(12px); transition: all .25s ease; pointer-events: none; }
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.success { border-color: var(--green); color: var(--green); }
+#toast.error { border-color: var(--red); color: var(--red); }
+
+/* Login */
+#login-overlay { position: fixed; inset: 0; background: rgba(13,15,20,.92); display: flex; align-items: center; justify-content: center; z-index: 500; backdrop-filter: blur(6px); }
+.login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; max-width: 400px; width: 90%; text-align: center; }
+.login-card h2 { font-family: var(--mono); font-size: 20px; margin-bottom: 8px; }
+.login-card h2 span { color: var(--accent); }
+.login-card p { color: var(--dim); font-size: 13px; margin-bottom: 28px; line-height: 1.6; }
+.login-card .steps { text-align: left; background: var(--panel); border-radius: var(--radius); padding: 16px; margin-bottom: 24px; font-size: 12px; color: var(--dim); line-height: 1.8; }
+.login-card .steps b { color: var(--text); font-family: var(--mono); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 99px; }
+
+/* Category colors */
+.cat-newsletter { background: rgba(79,125,255,.15); color: #4f7dff; }
+.cat-promotional { background: rgba(255,154,60,.15); color: #ff9a3c; }
+.cat-social { background: rgba(32,213,196,.15); color: #20d5c4; }
+.cat-spam { background: rgba(255,79,79,.15); color: #ff4f4f; }
+.cat-transactional { background: rgba(62,207,142,.15); color: #3ecf8e; }
+.cat-notification { background: rgba(240,192,64,.15); color: #f0c040; }
+.cat-campaign { background: rgba(124,92,255,.15); color: #7c5cff; }
+.cat-general { background: rgba(136,144,168,.15); color: #8890a8; }
+
+/* Tag badges */
+.tag-badge { font-size: 9px; font-family: var(--mono); border-radius: 3px; padding: 1px 5px; cursor: pointer; transition: all var(--trans); }
+.tag-badge.important { background: rgba(240,192,64,.2); color: var(--yellow); border: 1px solid rgba(240,192,64,.3); }
+.tag-badge.keep { background: rgba(62,207,142,.2); color: var(--green); border: 1px solid rgba(62,207,142,.3); }
+.tag-badge.spam-tag { background: rgba(255,79,79,.2); color: var(--red); border: 1px solid rgba(255,79,79,.3); }
+.tag-badge.custom-tag { background: rgba(124,92,255,.2); color: var(--accent2); border: 1px solid rgba(124,92,255,.3); }
+.tag-badge:hover { opacity: .7; }
+
+/* Account switcher */
+.account-switcher { position: relative; }
+.account-menu { position: absolute; top: 100%; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 0; min-width: 260px; z-index: 200; display: none; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.account-menu.show { display: block; }
+.account-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px; cursor: pointer; transition: background var(--trans); font-size: 12px; color: var(--dim); }
+.account-item:hover { background: var(--panel); color: var(--text); }
+.account-item.active { color: var(--accent); }
+.account-item .dot-active { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.account-divider { height: 1px; background: var(--border); margin: 4px 0; }
+.account-add { padding: 8px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--accent); transition: background var(--trans); }
+.account-add:hover { background: var(--panel); }
+
+/* Move-to dropdown */
+.move-dropdown { position: relative; display: inline-block; }
+.move-menu { position: absolute; bottom: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 0; min-width: 180px; z-index: 50; display: none; box-shadow: 0 -4px 16px rgba(0,0,0,.3); max-height: 240px; overflow-y: auto; }
+.move-menu.show { display: block; }
+.move-item { padding: 6px 12px; cursor: pointer; font-size: 12px; color: var(--dim); transition: background var(--trans); }
+.move-item:hover { background: var(--panel); color: var(--text); }
+.move-create { padding: 6px 12px; display: flex; align-items: center; gap: 6px; }
+.move-create input { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; padding: 4px 8px; outline: none; }
+.move-create button { background: var(--accent); border: none; color: #fff; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 11px; }
+
+/* Saved accounts on login screen */
+.saved-accounts { margin-top: 16px; text-align: left; }
+.saved-accounts-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+.saved-acct-card { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all var(--trans); margin-bottom: 6px; }
+.saved-acct-card:hover { border-color: var(--accent); background: rgba(79,125,255,.06); }
+.saved-acct-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; font-weight: 700; flex-shrink: 0; text-transform: uppercase; }
+.saved-acct-info { flex: 1; min-width: 0; }
+.saved-acct-email { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-acct-hint { font-size: 10px; color: var(--muted); }
+.saved-acct-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: 4px; transition: all var(--trans); flex-shrink: 0; }
+.saved-acct-remove:hover { color: var(--red); background: rgba(255,79,79,.1); }
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--muted); font-size: 11px; text-transform: uppercase; font-family: var(--mono); letter-spacing: .08em; }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 760px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; }
+.modal-header h3 { font-size: 15px; margin-bottom: 12px; padding-right: 28px; line-height: 1.4; }
+.modal-meta { font-size: 12px; color: var(--dim); display: flex; flex-direction: column; gap: 5px; }
+.modal-meta span b { color: var(--text); }
+.modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; font-size: 13px; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+.modal-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 22px; line-height: 1; padding: 4px 8px; border-radius: 4px; }
+.modal-close:hover { background: var(--panel); color: var(--text); }
+
+/* ── AI Panel (right side) ── */
+.ai-panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; transition: width var(--trans); }
+.ai-panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ai-panel-header h4 { font-family: var(--mono); font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+.ai-panel-header .spacer { flex: 1; }
+.ai-panel-header button { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+.ai-panel-header button:hover { background: var(--panel); color: var(--text); }
+
+.ai-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+.ai-msg { padding: 10px 12px; border-radius: var(--radius); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-width: 95%; }
+.ai-msg.user { background: rgba(79,125,255,.12); color: var(--accent); align-self: flex-end; border-bottom-right-radius: 2px; }
+.ai-msg.bot { background: var(--panel); color: var(--text); align-self: flex-start; border-bottom-left-radius: 2px; }
+.ai-msg.bot .typing { display: inline-block; animation: pulse 1s ease infinite; }
+
+.ai-suggestions { padding: 8px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.ai-suggestions .sug-chip { display: inline-block; padding: 4px 10px; margin: 2px 4px 2px 0; font-size: 11px; font-family: var(--mono); background: var(--panel); border: 1px solid var(--border); border-radius: 99px; color: var(--dim); cursor: pointer; transition: all var(--trans); }
+.ai-suggestions .sug-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.ai-input-wrap { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+.ai-input-wrap input { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; padding: 8px 12px; outline: none; font-family: var(--sans); }
+.ai-input-wrap input:focus { border-color: var(--accent); }
+.ai-input-wrap button { background: var(--accent); border: none; color: #fff; border-radius: var(--radius); padding: 8px 14px; cursor: pointer; font-size: 14px; transition: background var(--trans); }
+.ai-input-wrap button:hover { background: #6b91ff; }
+
+/* AI toggle button (when panel is closed) */
+.ai-toggle { position: fixed; bottom: 70px; right: 24px; z-index: 150; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); border: none; color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 4px 16px rgba(79,125,255,.4); transition: all var(--trans); display: none; }
+.ai-toggle:hover { transform: scale(1.1); }
+.ai-toggle.show { display: flex; align-items: center; justify-content: center; }
+
+/* Label+Domain groups */
+.ld-group { padding: 6px 10px; border-radius: var(--radius); cursor: pointer; transition: all var(--trans); display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); }
+.ld-group:hover { background: var(--panel); color: var(--text); }
+.ld-group.active { background: var(--panel); color: var(--accent); }
+.ld-group .ld-label { font-family: var(--mono); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.ld-group .ld-cat-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">&#x1f4ec; Gmail<span>Cleaner</span></div>
+  <div class="status-pill">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text" style="font-size:11px">Checking...</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">&#x1f319;</button>
+  <div class="account-switcher" id="account-switcher" style="display:none">
+    <button class="btn btn-ghost btn-sm" onclick="toggleAccountMenu()" id="account-btn">&#x1f464; Account</button>
+    <div class="account-menu" id="account-menu">
+      <div id="account-list"></div>
+      <div class="account-divider"></div>
+      <div class="account-add" onclick="showAddAccountModal()">+ Add Account</div>
+    </div>
+  </div>
+  <button class="btn btn-ghost btn-sm" id="ai-open-btn" onclick="toggleAIPanel()" style="display:none">&#x1f916; AI Assistant</button>
+  <button class="btn btn-ghost" onclick="refreshEmails()" id="refresh-btn" disabled>&#8634; Refresh</button>
+  <button class="btn btn-ghost" onclick="emptyTrash()" id="trash-btn" style="display:none">&#x1f5d1; Empty Trash</button>
+  <button class="btn btn-ghost" onclick="logout()" id="logout-btn" style="display:none">Logout</button>
+</header>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <h2>&#x1f4ec; Gmail<span>Cleaner</span></h2>
+    <p>Connect directly to Gmail via IMAP. No browser window needed.</p>
+    <div id="saved-accounts-wrap" class="saved-accounts" style="display:none">
+      <div class="saved-accounts-label">Saved Accounts — click to login</div>
+      <div id="saved-accounts-list"></div>
+      <div class="login-divider">or add new account</div>
+    </div>
+    <div class="steps">
+      <b>1.</b> Enable IMAP in Gmail Settings<br/>
+      <b>2.</b> Create an App Password at <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent)">myaccount.google.com/apppasswords</a><br/>
+      <b>3.</b> Enter your Gmail and 16-char App Password below
+    </div>
+    <input type="email" id="imap-email" placeholder="your@gmail.com" style="width:100%;padding:10px 12px;margin-top:12px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;outline:none"/>
+    <input type="password" id="imap-password" placeholder="App Password" style="width:100%;padding:10px 12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;outline:none"/>
+    <button class="btn btn-primary" onclick="startLogin()" id="login-btn" style="width:100%;padding:12px;margin-top:12px">Connect to Gmail</button>
+    <p id="login-msg" style="margin-top:12px;font-size:12px;min-height:18px"></p>
+  </div>
+</div>
+
+<div class="app ai-closed" id="app-shell" style="display:none">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Categories</div>
+      <button class="filter-btn active" onclick="setFilter('all', this)" id="filter-all">
+        <div class="filter-icon" style="background:rgba(79,125,255,.15);color:#4f7dff">&#x1f4e5;</div>All Emails<span class="filter-count" id="fc-all">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('Newsletter', this)"><div class="filter-icon" style="background:rgba(79,125,255,.15);color:#4f7dff">&#x1f4f0;</div>Newsletter<span class="filter-count" id="fc-Newsletter">0</span></button>
+      <button class="filter-btn" onclick="setFilter('Promotional', this)"><div class="filter-icon" style="background:rgba(255,154,60,.15);color:#ff9a3c">&#x1f3f7;&#xfe0f;</div>Promotional<span class="filter-count" id="fc-Promotional">0</span></button>
+      <button class="filter-btn" onclick="setFilter('Social', this)"><div class="filter-icon" style="background:rgba(32,213,196,.15);color:#20d5c4">&#x1f4ac;</div>Social<span class="filter-count" id="fc-Social">0</span></button>
+      <button class="filter-btn" onclick="setFilter('Campaign', this)"><div class="filter-icon" style="background:rgba(124,92,255,.15);color:#7c5cff">&#x1f4e3;</div>Campaign<span class="filter-count" id="fc-Campaign">0</span></button>
+      <button class="filter-btn" onclick="setFilter('Notification', this)"><div class="filter-icon" style="background:rgba(240,192,64,.15);color:#f0c040">&#x1f514;</div>Notification<span class="filter-count" id="fc-Notification">0</span></button>
+      <button class="filter-btn" onclick="setFilter('Transactional', this)"><div class="filter-icon" style="background:rgba(62,207,142,.15);color:#3ecf8e">&#x1f9fe;</div>Transactional<span class="filter-count" id="fc-Transactional">0</span></button>
+      <button class="filter-btn" onclick="setFilter('Spam', this)"><div class="filter-icon" style="background:rgba(255,79,79,.15);color:#ff4f4f">&#x1f6ab;</div>Spam<span class="filter-count" id="fc-Spam">0</span></button>
+      <button class="filter-btn" onclick="setFilter('General', this)"><div class="filter-icon" style="background:rgba(136,144,168,.15);color:#8890a8">&#x1f4c1;</div>General<span class="filter-count" id="fc-General">0</span></button>
+      <div id="custom-cats-sidebar"></div>
+      <div style="display:flex;gap:4px;padding:4px 10px;margin-top:4px">
+        <input type="text" id="sidebar-new-cat" placeholder="+ New category..." style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:5px 8px;outline:none;font-family:var(--sans)" onkeydown="if(event.key==='Enter')createCategoryFromSidebar()"/>
+        <button onclick="createCategoryFromSidebar()" style="background:var(--accent);border:none;color:#fff;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:var(--mono);white-space:nowrap">+ Add</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Smart Filters</div>
+      <button class="filter-btn" onclick="setFilter('suggested', this)" id="filter-suggested">
+        <div class="filter-icon" style="background:rgba(255,154,60,.15);color:#ff9a3c">&#x1f9e0;</div>Suggested Delete<span class="filter-count" id="fc-suggested">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('unread', this)" id="filter-unread">
+        <div class="filter-icon" style="background:rgba(79,125,255,.15);color:#4f7dff">&#x25cf;</div>Unread Only<span class="filter-count" id="fc-unread">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('attachment', this)" id="filter-attachment">
+        <div class="filter-icon" style="background:rgba(255,95,160,.15);color:#ff5fa0">&#x1f4ce;</div>Has Attachment<span class="filter-count" id="fc-attachment">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('no-attachment', this)" id="filter-no-attachment">
+        <div class="filter-icon" style="background:rgba(136,144,168,.15);color:#8890a8">&#x1f4c4;</div>No Attachment<span class="filter-count" id="fc-no-attachment">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('date:today', this)"><div class="filter-icon" style="background:rgba(62,207,142,.15);color:#3ecf8e">&#x1f4c5;</div>Today</button>
+      <button class="filter-btn" onclick="setFilter('date:week', this)"><div class="filter-icon" style="background:rgba(62,207,142,.15);color:#3ecf8e">&#x1f5d3;</div>This Week</button>
+      <button class="filter-btn" onclick="setFilter('date:month', this)"><div class="filter-icon" style="background:rgba(62,207,142,.15);color:#3ecf8e">&#x1f4c6;</div>This Month</button>
+    </div>
+    <div class="divider"></div>
+    <div class="sidebar-section" id="tags-section">
+      <div class="sidebar-label">Tags<span id="tag-total" style="font-size:10px;color:var(--dim)"></span></div>
+      <button class="filter-btn" onclick="setFilter('tag:important', this)">
+        <div class="filter-icon" style="background:rgba(240,192,64,.15);color:#f0c040">&#x2b50;</div>Important<span class="filter-count" id="fc-tag-important">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('tag:keep', this)">
+        <div class="filter-icon" style="background:rgba(62,207,142,.15);color:#3ecf8e">&#x1f512;</div>Keep<span class="filter-count" id="fc-tag-keep">0</span>
+      </button>
+      <button class="filter-btn" onclick="setFilter('tag:spam', this)">
+        <div class="filter-icon" style="background:rgba(255,79,79,.15);color:#ff4f4f">&#x26a0;</div>Spam Tagged<span class="filter-count" id="fc-tag-spam">0</span>
+      </button>
+      <div id="custom-tags-list"></div>
+      <div style="display:flex;gap:4px;padding:4px 10px;margin-top:4px">
+        <input type="text" id="sidebar-new-tag" placeholder="+ New tag..." style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:5px 8px;outline:none;font-family:var(--sans)" onkeydown="if(event.key==='Enter')createTagFromSidebar()"/>
+        <button onclick="createTagFromSidebar()" style="background:var(--accent);border:none;color:#fff;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:var(--mono);white-space:nowrap">+ Add</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sort</div>
+      <button class="filter-btn active" onclick="setSort('newest', this)" id="sort-newest"><div class="filter-icon" style="background:rgba(124,92,255,.15);color:#7c5cff">&#x2193;</div>Newest First</button>
+      <button class="filter-btn" onclick="setSort('oldest', this)" id="sort-oldest"><div class="filter-icon" style="background:rgba(124,92,255,.15);color:#7c5cff">&#x2191;</div>Oldest First</button>
+      <button class="filter-btn" onclick="setSort('sender', this)" id="sort-sender"><div class="filter-icon" style="background:rgba(124,92,255,.15);color:#7c5cff">A</div>By Sender</button>
+    </div>
+    <div class="divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Label+Domain<span id="ld-total" style="font-size:10px;color:var(--dim)"></span></div>
+      <input id="ld-search" type="text" placeholder="Search labels..." oninput="filterLDGroups()" style="width:100%;padding:6px 10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none"/>
+      <div class="domain-sort-row">
+        <button class="domain-sort-btn active" id="ldsort-count-desc" onclick="setLDSort('count-desc', this)">&#x25bc; Count</button>
+        <button class="domain-sort-btn" id="ldsort-count-asc" onclick="setLDSort('count-asc', this)">&#x25b2; Count</button>
+        <button class="domain-sort-btn" id="ldsort-alpha" onclick="setLDSort('alpha', this)">A-Z</button>
+      </div>
+      <div id="ld-list" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Domains<span id="domain-total-count" style="font-size:10px;color:var(--dim)"></span></div>
+      <input id="domain-search" type="text" placeholder="Search domains..." oninput="filterDomainList()" style="width:100%;padding:6px 10px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none"/>
+      <div class="domain-sort-row">
+        <button class="domain-sort-btn active" id="dsort-count-desc" onclick="setDomainSort('count-desc', this)">&#x25bc; Count</button>
+        <button class="domain-sort-btn" id="dsort-count-asc" onclick="setDomainSort('count-asc', this)">&#x25b2; Count</button>
+        <button class="domain-sort-btn" id="dsort-alpha" onclick="setDomainSort('alpha', this)">A-Z</button>
+      </div>
+      <div class="domain-select-all-row">
+        <input type="checkbox" id="domain-select-all-chk" onchange="toggleSelectAllDomains(this.checked)"/>
+        <label for="domain-select-all-chk">Select all</label>
+      </div>
+      <div id="domain-list" style="max-height:240px;overflow-y:auto"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main>
+    <div class="progress-bar" id="progress-bar" style="display:none"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <div class="stat-item"><div class="stat-n" id="st-total">0</div><div class="stat-l">Total</div></div>
+      <div class="stat-item"><div class="stat-n" id="st-filtered">0</div><div class="stat-l">Filtered</div></div>
+      <div class="stat-item"><div class="stat-n" id="st-unread">0</div><div class="stat-l">Unread</div></div>
+      <div class="stat-item"><div class="stat-n" id="st-attach">0</div><div class="stat-l">Attach</div></div>
+      <div class="stat-item"><div class="stat-n" id="st-suggested">0</div><div class="stat-l">Suggested</div></div>
+      <div class="stat-item"><div class="stat-n" id="st-selected">0</div><div class="stat-l">Selected</div></div>
+      <div class="stat-item" style="flex:1"></div>
+    </div>
+    <div class="toolbar">
+      <div class="select-all-wrap">
+        <input type="checkbox" id="select-all" onchange="toggleSelectAllPage(this.checked)" title="Select page"/>
+        <label for="select-all" style="cursor:pointer;font-size:12px;color:var(--dim)">Page</label>
+      </div>
+      <div class="search-box"><span class="si">&#x1f50d;</span><input type="text" placeholder="Search sender, subject, domain..." id="search-input" oninput="applySearch(this.value)"/></div>
+      <div class="view-toggle">
+        <button class="active" onclick="setViewMode('default', this)">Default</button>
+        <button onclick="setViewMode('compact', this)">Compact</button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <span class="selected-count" id="selected-count">0 selected</span>
+      <button class="btn btn-danger btn-sm" id="delete-btn" onclick="deleteSelected()" disabled>&#x1f5d1; Delete</button>
+      <button class="btn btn-ghost btn-sm" onclick="fetchEmails(true)" id="fetch-btn">Fetch Emails</button>
+    </div>
+    <div class="select-all-banner" id="select-all-banner"><span id="banner-text"></span><a id="banner-action"></a></div>
+    <div class="bulk-bar" id="bulk-bar">
+      <span class="bulk-label" id="bulk-label">0 selected</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelected()">&#x1f5d1; Delete</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">&#x2715; Clear</button>
+      <span class="bulk-spacer"></span>
+      <button class="btn btn-ghost btn-sm" onclick="tagSelected('important')" title="Tag as Important">&#x2b50; Important</button>
+      <button class="btn btn-ghost btn-sm" onclick="tagSelected('keep')" title="Tag as Keep">&#x1f512; Keep</button>
+      <button class="btn btn-ghost btn-sm" onclick="showTagMenu(event)" title="More tags">&#x1f3f7; Tag</button>
+      <div class="move-dropdown" id="move-dropdown">
+        <button class="btn btn-ghost btn-sm" onclick="toggleMoveMenu()">&#x1f4c2; Move</button>
+        <div class="move-menu" id="move-menu">
+          <div id="move-cat-list"></div>
+          <div class="account-divider"></div>
+          <div class="move-create">
+            <input type="text" id="new-cat-input" placeholder="New category..." onkeydown="if(event.key==='Enter')createAndMoveCategory()"/>
+            <button onclick="createAndMoveCategory()">+</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="selectByDomain()">+ Domain</button>
+      <button class="btn btn-ghost btn-sm" onclick="selectByCategory()">+ Category</button>
+      <button class="btn btn-ghost btn-sm" onclick="selectSuggested()">+ Suggested</button>
+    </div>
+    <div class="suggestion-bar" id="suggestion-bar">
+      <span class="sug-label">&#x1f9e0;</span>
+      <span class="sug-text" id="sug-text">Loading suggestions...</span>
+      <span class="bulk-spacer"></span>
+      <button class="btn btn-ghost btn-sm" onclick="setFilter('suggested', document.getElementById('filter-suggested'))">Show Emails</button>
+      <button class="btn btn-ghost btn-sm" onclick="selectSuggested()">Select All Suggested</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeSuggestionBar()" style="padding:4px 8px;font-size:14px">&#x2715;</button>
+    </div>
+    <div class="email-list-wrap">
+      <div class="state-view" id="state-empty"><div class="icon">&#x1f4ed;</div><h3>No emails loaded</h3><p>Click "Fetch Emails" to load and categorize your inbox.</p></div>
+      <div class="state-view" id="state-loading" style="display:none"><div class="icon" style="animation:pulse 1s ease infinite">&#x2699;&#xfe0f;</div><h3>Fetching your emails...</h3><p id="fetch-msg">Connecting to Gmail...</p></div>
+      <ul class="email-list" id="email-list" style="display:none"></ul>
+    </div>
+  </main>
+
+  <!-- AI Panel -->
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-panel-header">
+      <span>&#x1f916;</span>
+      <h4>AI Assistant</h4>
+      <span class="spacer"></span>
+      <button onclick="toggleAIPanel()" title="Close">&#x2715;</button>
+    </div>
+    <div class="ai-suggestions" id="ai-suggestions">
+      <div class="sug-chip" onclick="askQuestion('How many emails do I have?')">Total emails?</div>
+      <div class="sug-chip" onclick="askQuestion('What should I clean up?')">Cleanup tips</div>
+      <div class="sug-chip" onclick="askQuestion('Show top senders')">Top senders</div>
+      <div class="sug-chip" onclick="askQuestion('Show top domains')">Top domains</div>
+      <div class="sug-chip" onclick="askQuestion('Show category breakdown')">Categories</div>
+      <div class="sug-chip" onclick="askQuestion('How many spam emails?')">Spam count</div>
+      <div class="sug-chip" onclick="askQuestion('How many unread emails?')">Unread</div>
+      <div class="sug-chip" onclick="askQuestion('How many attachment emails?')">Attachments</div>
+      <div class="sug-chip" onclick="askQuestion('Show my tags')">My Tags</div>
+      <div class="sug-chip" onclick="askQuestion('Which accounts do I have?')">Accounts</div>
+    </div>
+    <div class="ai-messages" id="ai-messages">
+      <div class="ai-msg bot">Hi! I'm your inbox assistant. Ask me anything about your emails, cleanup suggestions, or patterns I notice.</div>
+    </div>
+    <div class="ai-input-wrap">
+      <input type="text" id="ai-input" placeholder="Ask about your emails..." onkeydown="if(event.key==='Enter')sendAI()"/>
+      <button onclick="sendAI()">&#x27a4;</button>
+    </div>
+  </div>
+</div>
+
+<button class="ai-toggle" id="ai-toggle" onclick="toggleAIPanel()">&#x1f916;</button>
+<div id="toast"></div>
+
+<script>
+var API = '';
+var allEmails = [];
+var filteredEmails = [];
+var currentFilter = 'all';
+var currentSort = 'newest';
+var searchQuery = '';
+var fetchPollTimer = null;
+var statusPollTimer = null;
+var RENDER_PAGE = 300;
+var _renderOffset = 0;
+var _activeEmailId = null;
+var _viewMode = 'default';
+var _selectAllFilteredMode = false;
+var _selectedIds = new Set();
+var _domainSort = 'count-desc';
+var _allDomainEntries = [];
+var _suggestedIds = new Set();
+var _suggestionsData = [];
+var _ldGroups = [];
+var _aiPanelOpen = true;
+var _ldSort = 'count-desc';
+var _emailTags = {};      // emailID → [tag1, tag2, ...]
+var _tagSummary = {};     // tag → count
+var _allTags = [];        // all tag names
+var _customCategories = [];
+var _accounts = [];
+
+// ── Boot ──
+window.addEventListener('DOMContentLoaded', function() {
+  initTheme();
+  checkStatus();
+  statusPollTimer = setInterval(checkStatus, 5000);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEmail();
+    if (e.key === 'a' && (e.ctrlKey || e.metaKey) && !e.target.matches('input,textarea')) {
+      e.preventDefault();
+      toggleSelectAllPage(true);
+      document.getElementById('select-all').checked = true;
+    }
+  });
+});
+
+// ── Theme ──
+function initTheme() {
+  var saved = localStorage.getItem('gc-theme') || 'dark';
+  applyTheme(saved);
+}
+function toggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme') || 'dark';
+  var next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  localStorage.setItem('gc-theme', next);
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  var btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = theme === 'dark' ? '&#x1f319;' : '&#x2600;&#xfe0f;';
+}
+
+async function checkStatus() {
+  try {
+    var r = await fetch('/api/status');
+    var d = await r.json();
+    _accounts = d.accounts || [];
+    updateStatusUI(d);
+    updateAccountMenu();
+    renderSavedAccountsOnLogin();
+    if (d.logged_in) {
+      showApp();
+      if (d.cached_emails && allEmails.length === 0) fetchEmails(false);
+    }
+  } catch (e) { setStatusDot('red', 'Offline'); }
+}
+
+function updateStatusUI(d) {
+  if (d.logged_in) {
+    setStatusDot('green', d.active_account || 'Connected');
+    document.getElementById('logout-btn').style.display = '';
+    document.getElementById('trash-btn').style.display = '';
+    document.getElementById('refresh-btn').disabled = false;
+    document.getElementById('ai-open-btn').style.display = '';
+    document.getElementById('account-switcher').style.display = '';
+    if (d.active_account) {
+      document.getElementById('account-btn').innerHTML = '&#x1f464; ' + d.active_account.split('@')[0];
+    }
+  } else {
+    var task = d.login_task || {};
+    if (task.status === 'waiting' || task.status === 'opening') {
+      setStatusDot('pulse', 'Waiting...');
+    } else { setStatusDot('red', 'Not logged in'); }
+  }
+}
+
+function setStatusDot(cls, txt) {
+  document.getElementById('status-dot').className = 'dot ' + cls;
+  document.getElementById('status-text').textContent = txt;
+}
+function showApp() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'grid';
+}
+
+// ── Login ──
+async function startLogin() {
+  var btn = document.getElementById('login-btn');
+  var emailVal = document.getElementById('imap-email').value.trim();
+  var passVal = document.getElementById('imap-password').value.trim();
+  var msgEl = document.getElementById('login-msg');
+  if (!emailVal || !passVal) { msgEl.textContent = 'Please enter both fields.'; return; }
+  btn.disabled = true; btn.textContent = 'Verifying...'; msgEl.textContent = '';
+  try {
+    await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailVal, password: passVal }) });
+    msgEl.textContent = 'Connecting to Gmail IMAP...';
+    setStatusDot('pulse', 'Verifying...');
+    var poll = setInterval(async function() {
+      var r = await fetch('/api/status'); var d = await r.json();
+      if (d.logged_in) { clearInterval(poll); showApp(); toast('Connected!', 'success'); }
+      else if (d.login_task && d.login_task.status === 'error') { clearInterval(poll); btn.disabled = false; btn.textContent = 'Connect to Gmail'; msgEl.textContent = d.login_task.message; }
+    }, 1500);
+  } catch (e) { btn.disabled = false; btn.textContent = 'Connect to Gmail'; toast('Error: ' + e.message, 'error'); }
+}
+async function logout() {
+  try {
+    var r = await fetch('/api/logout', { method: 'POST' });
+    var d = await r.json();
+    _accounts = d.accounts || _accounts;
+  } catch (e) {}
+  allEmails = []; filteredEmails = [];
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('login-overlay').style.display = '';
+  renderSavedAccountsOnLogin();
+  setStatusDot('red', 'Logged out');
+}
+
+// ── Saved accounts on login screen ──
+function renderSavedAccountsOnLogin() {
+  var wrap = document.getElementById('saved-accounts-wrap');
+  var list = document.getElementById('saved-accounts-list');
+  if (!list || !wrap) return;
+  if (!_accounts || _accounts.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  list.innerHTML = '';
+  var colors = ['#4f7dff','#7c5cff','#ff9a3c','#20d5c4','#3ecf8e','#f0c040','#ff5fa0','#ff4f4f'];
+  _accounts.forEach(function(a, i) {
+    var card = document.createElement('div');
+    card.className = 'saved-acct-card';
+    var initial = (a.email || '?')[0].toUpperCase();
+    var color = colors[i % colors.length];
+    card.innerHTML =
+      '<div class="saved-acct-avatar" style="background:' + color + '20;color:' + color + '">' + initial + '</div>' +
+      '<div class="saved-acct-info"><div class="saved-acct-email">' + esc(a.email) + '</div><div class="saved-acct-hint">Click to auto-login</div></div>' +
+      '<button class="saved-acct-remove" onclick="event.stopPropagation();removeSavedAccount(\'' + esc(a.email) + '\')" title="Remove">&#x2715;</button>';
+    card.onclick = function() { autoLogin(a.email); };
+    list.appendChild(card);
+  });
+}
+
+async function autoLogin(email) {
+  var msgEl = document.getElementById('login-msg');
+  msgEl.textContent = 'Logging in as ' + email + '...';
+  setStatusDot('pulse', 'Connecting...');
+  // Disable all saved account cards during login
+  document.querySelectorAll('.saved-acct-card').forEach(function(c) { c.style.pointerEvents = 'none'; c.style.opacity = '0.5'; });
+  try {
+    await fetch('/api/accounts/autologin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) });
+    var poll = setInterval(async function() {
+      var r = await fetch('/api/status'); var d = await r.json();
+      if (d.logged_in) {
+        clearInterval(poll);
+        _accounts = d.accounts || _accounts;
+        showApp();
+        toast('Connected as ' + email, 'success');
+        fetchEmails(false);
+      } else if (d.login_task && d.login_task.status === 'error') {
+        clearInterval(poll);
+        msgEl.textContent = d.login_task.message;
+        setStatusDot('red', 'Login failed');
+        document.querySelectorAll('.saved-acct-card').forEach(function(c) { c.style.pointerEvents = ''; c.style.opacity = ''; });
+      }
+    }, 1500);
+  } catch (e) {
+    msgEl.textContent = 'Error: ' + e.message;
+    setStatusDot('red', 'Error');
+    document.querySelectorAll('.saved-acct-card').forEach(function(c) { c.style.pointerEvents = ''; c.style.opacity = ''; });
+  }
+}
+
+async function removeSavedAccount(email) {
+  if (!confirm('Remove saved account ' + email + '? You will need to re-enter the password to use it again.')) return;
+  try {
+    await fetch('/api/accounts/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) });
+    _accounts = _accounts.filter(function(a) { return a.email !== email; });
+    renderSavedAccountsOnLogin();
+    updateAccountMenu();
+    toast('Account removed', 'success');
+  } catch (e) { toast('Remove failed: ' + e.message, 'error'); }
+}
+
+// ── Fetch ──
+async function fetchEmails(refresh) {
+  if (refresh) showLoadingState(true);
+  var url = refresh ? '/api/emails?refresh=true' : '/api/emails';
+  try {
+    var r = await fetch(url); var d = await r.json();
+    if (d.status === 'running') { showLoadingState(true); startFetchPoll(); }
+    else if (d.status === 'no_cache') { showLoadingState(false); }
+    else if (d.emails) { onEmailsLoaded(d); }
+  } catch (e) { showLoadingState(false); toast('Error: ' + e.message, 'error'); }
+}
+function startFetchPoll() {
+  clearInterval(fetchPollTimer);
+  fetchPollTimer = setInterval(async function() {
+    try {
+      var r = await fetch('/api/emails/status'); var s = await r.json();
+      document.getElementById('fetch-msg').textContent = s.message || 'Loading...';
+      document.getElementById('progress-bar').style.display = '';
+      document.getElementById('progress-fill').style.width = (s.progress || 0) + '%';
+      if (s.status === 'done') { clearInterval(fetchPollTimer); var r2 = await fetch('/api/emails'); var d = await r2.json(); if (d.emails) onEmailsLoaded(d); }
+      else if (s.status === 'error') { clearInterval(fetchPollTimer); showLoadingState(false); toast('Error: ' + s.message, 'error'); }
+    } catch(e) {}
+  }, 2000);
+}
+function onEmailsLoaded(data) {
+  allEmails = data.emails || [];
+  _emailTags = data.tags || {};
+  _tagSummary = data.tag_summary || {};
+  _allTags = data.all_tags || ['important', 'keep', 'spam'];
+  _customCategories = data.custom_categories || [];
+  showLoadingState(false);
+  document.getElementById('progress-bar').style.display = 'none';
+  updateSidebar(data);
+  updateTagSidebar();
+  loadSuggestions();
+  loadLDGroups();
+  applyFilter();
+  toast('Loaded ' + allEmails.length + ' emails', 'success');
+}
+function refreshEmails() { fetchEmails(true); }
+function showLoadingState(loading) {
+  document.getElementById('state-loading').style.display = loading ? '' : 'none';
+  document.getElementById('state-empty').style.display = (!loading && allEmails.length === 0) ? '' : 'none';
+  document.getElementById('email-list').style.display = (!loading && allEmails.length > 0) ? '' : 'none';
+  document.getElementById('stats-bar').style.display = (!loading && allEmails.length > 0) ? '' : 'none';
+}
+
+// ── Suggestions ──
+async function loadSuggestions() {
+  try {
+    var r = await fetch('/api/suggestions'); var d = await r.json();
+    _suggestionsData = d.suggestions || [];
+    _suggestedIds.clear();
+    _suggestionsData.forEach(function(s) { _suggestedIds.add(s.email_id); });
+    document.getElementById('fc-suggested').textContent = _suggestionsData.length;
+    document.getElementById('st-suggested').textContent = _suggestionsData.length;
+    var sugBar = document.getElementById('suggestion-bar');
+    if (_suggestionsData.length > 0) {
+      sugBar.classList.add('show');
+      document.getElementById('sug-text').textContent = _suggestionsData.length + ' emails match your deletion patterns';
+    } else { sugBar.classList.remove('show'); }
+  } catch (e) {}
+}
+
+// ── Label+Domain groups ──
+var _ldSortedGroups = [];
+async function loadLDGroups() {
+  try {
+    var r = await fetch('/api/label_domain_groups'); var d = await r.json();
+    _ldGroups = d.groups || [];
+    document.getElementById('ld-total').textContent = '(' + _ldGroups.length + ')';
+    sortAndRenderLDGroups();
+  } catch (e) {}
+}
+function sortAndRenderLDGroups() {
+  var groups = _ldGroups.slice();
+  var q = document.getElementById('ld-search').value.toLowerCase();
+  if (q) groups = groups.filter(function(g) { return g.label.toLowerCase().includes(q); });
+  if (_ldSort === 'count-desc') groups.sort(function(a,b) { return b.count - a.count; });
+  else if (_ldSort === 'count-asc') groups.sort(function(a,b) { return a.count - b.count; });
+  else groups.sort(function(a,b) { return a.label.localeCompare(b.label); });
+  _ldSortedGroups = groups;
+  renderLDGroups(groups);
+}
+function setLDSort(sort, btn) {
+  _ldSort = sort;
+  document.querySelectorAll('[id^="ldsort-"]').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  sortAndRenderLDGroups();
+}
+function renderLDGroups(groups) {
+  var el = document.getElementById('ld-list'); el.innerHTML = '';
+  var catColors = { Newsletter:'#4f7dff', Promotional:'#ff9a3c', Social:'#20d5c4', Spam:'#ff4f4f', Transactional:'#3ecf8e', Notification:'#f0c040', Campaign:'#7c5cff', General:'#8890a8' };
+  groups.slice(0, 80).forEach(function(g) {
+    var row = document.createElement('div'); row.className = 'ld-group';
+    row.innerHTML = '<div class="ld-cat-dot" style="background:' + (catColors[g.category] || '#8890a8') + '"></div>' +
+      '<span class="ld-label">' + esc(g.label) + '</span><span class="filter-count">' + g.count + '</span>';
+    row.onclick = function() {
+      document.querySelectorAll('.ld-group').forEach(function(r) { r.classList.remove('active'); });
+      row.classList.add('active');
+      currentFilter = 'ld:' + g.category + ':' + g.domain;
+      document.querySelectorAll('#sidebar .filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      clearSelection(); applyFilter();
+    };
+    el.appendChild(row);
+  });
+}
+function filterLDGroups() {
+  sortAndRenderLDGroups();
+}
+
+// ── Filter & render ──
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('#sidebar .filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.domain-row').forEach(function(r) { r.classList.remove('active'); });
+  document.querySelectorAll('.ld-group').forEach(function(r) { r.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (!filter.startsWith('domain:')) {
+    document.querySelectorAll('#domain-list input[type="checkbox"]').forEach(function(c) { c.checked = false; });
+    var mc = document.getElementById('domain-select-all-chk'); mc.checked = false; mc.indeterminate = false;
+  }
+  clearSelection(); applyFilter();
+}
+function applySearch(q) { searchQuery = q.toLowerCase(); applyFilter(); }
+
+function applyFilter() {
+  var emails = allEmails;
+  if (currentFilter === 'unread') { emails = emails.filter(function(e) { return e.unread; }); }
+  else if (currentFilter === 'attachment') { emails = emails.filter(function(e) { return e.has_attachment; }); }
+  else if (currentFilter === 'no-attachment') { emails = emails.filter(function(e) { return !e.has_attachment; }); }
+  else if (currentFilter === 'suggested') { emails = emails.filter(function(e) { return _suggestedIds.has(e.id); }); }
+  else if (currentFilter.startsWith('tag:')) {
+    var tagName = currentFilter.substring(4);
+    emails = emails.filter(function(e) { return (_emailTags[e.id] || []).indexOf(tagName) >= 0; });
+  } else if (currentFilter.startsWith('domain:')) {
+    var d = currentFilter.replace('domain:', '');
+    emails = emails.filter(function(e) { return e.domain === d; });
+  } else if (currentFilter.startsWith('ld:')) {
+    var parts = currentFilter.substring(3).split(':');
+    var cat = parts[0], dom = parts.slice(1).join(':');
+    emails = emails.filter(function(e) { return (e.category || 'General') === cat && (e.domain || 'unknown') === dom; });
+  } else if (currentFilter.startsWith('date:')) {
+    var now = new Date();
+    var sod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var bow = new Date(sod); bow.setDate(sod.getDate() - sod.getDay());
+    var bom = new Date(now.getFullYear(), now.getMonth(), 1);
+    var cutoff = currentFilter === 'date:today' ? sod : currentFilter === 'date:week' ? bow : bom;
+    emails = emails.filter(function(e) { var d = new Date(e.date); return !isNaN(d) && d >= cutoff; });
+  } else if (currentFilter !== 'all') {
+    emails = emails.filter(function(e) { return e.category === currentFilter; });
+  }
+  var checkedDomains = getCheckedDomains();
+  if (checkedDomains.length > 0 && !currentFilter.startsWith('domain:')) {
+    var domSet = new Set(checkedDomains);
+    emails = emails.filter(function(e) { return domSet.has(e.domain); });
+  }
+  if (searchQuery) {
+    emails = emails.filter(function(e) {
+      return (e.sender_name||'').toLowerCase().includes(searchQuery) ||
+        (e.sender_email||'').toLowerCase().includes(searchQuery) ||
+        (e.subject||'').toLowerCase().includes(searchQuery) ||
+        (e.snippet||'').toLowerCase().includes(searchQuery) ||
+        (e.domain||'').toLowerCase().includes(searchQuery);
+    });
+  }
+  if (currentSort === 'oldest') { emails = emails.slice().sort(function(a,b) { return new Date(a.date) - new Date(b.date); }); }
+  else if (currentSort === 'sender') { emails = emails.slice().sort(function(a,b) { return (a.sender_name||a.sender_email||'').localeCompare(b.sender_name||b.sender_email||''); }); }
+  else { emails = emails.slice().sort(function(a,b) { return new Date(b.date) - new Date(a.date); }); }
+  filteredEmails = emails;
+  renderList(emails);
+  updateSelectionUI();
+}
+function setSort(sort, btn) {
+  currentSort = sort;
+  document.querySelectorAll('[id^="sort-"]').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  applyFilter();
+}
+function setViewMode(mode, btn) {
+  _viewMode = mode;
+  document.querySelectorAll('.view-toggle button').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  document.getElementById('email-list').classList.toggle('compact', mode === 'compact');
+}
+
+function renderList(emails) {
+  _renderOffset = 0;
+  var list = document.getElementById('email-list');
+  list.innerHTML = ''; list.classList.toggle('compact', _viewMode === 'compact');
+  var oldWrap = document.getElementById('load-more-wrap'); if (oldWrap) oldWrap.remove();
+  document.getElementById('st-total').textContent = allEmails.length;
+  document.getElementById('st-filtered').textContent = filteredEmails.length;
+  document.getElementById('st-unread').textContent = allEmails.filter(function(e) { return e.unread; }).length;
+  document.getElementById('st-attach').textContent = allEmails.filter(function(e) { return e.has_attachment; }).length;
+  if (emails.length === 0) {
+    document.getElementById('state-empty').style.display = '';
+    document.getElementById('state-empty').querySelector('h3').textContent = 'No emails match';
+    document.getElementById('state-empty').querySelector('p').textContent = allEmails.length > 0 ? 'Try a different filter.' : 'Click "Fetch Emails" to load your inbox.';
+    list.style.display = 'none'; return;
+  }
+  document.getElementById('state-empty').style.display = 'none';
+  list.style.display = '';
+  _appendEmailRows();
+}
+
+function _appendEmailRows() {
+  var list = document.getElementById('email-list');
+  var oldWrap = document.getElementById('load-more-wrap'); if (oldWrap) oldWrap.remove();
+  var slice = filteredEmails.slice(_renderOffset, _renderOffset + RENDER_PAGE);
+  _renderOffset += slice.length;
+  slice.forEach(function(email) {
+    var li = document.createElement('li');
+    li.className = 'email-row';
+    li.dataset.id = email.id;
+    if (_suggestedIds.has(email.id)) li.classList.add('suggested');
+    li.addEventListener('click', function(ev) { if (ev.target.type === 'checkbox') return; openEmail(email); });
+    var isSelected = _selectAllFilteredMode || _selectedIds.has(email.id);
+    if (isSelected) li.classList.add('selected');
+    var cat = (email.category || 'general').toLowerCase();
+    var initial = (email.sender_name || email.sender_email || '?')[0].toUpperCase();
+    var avatarColor = stringToColor(email.sender_email || '');
+    var sugBadge = _suggestedIds.has(email.id) ? '<span class="sug-badge">SUGGESTED</span>' : '';
+    var tagBadges = '';
+    (_emailTags[email.id] || []).forEach(function(t) {
+      var cls = t === 'important' ? 'important' : t === 'keep' ? 'keep' : t === 'spam' ? 'spam-tag' : 'custom-tag';
+      tagBadges += '<span class="tag-badge ' + cls + '" onclick="event.stopPropagation();removeTagFromEmail(\'' + esc(email.id) + '\',\'' + esc(t) + '\')" title="Click to remove">' + esc(t) + ' ×</span>';
+    });
+    li.innerHTML =
+      '<input type="checkbox" data-id="' + esc(email.id) + '" ' + (isSelected ? 'checked' : '') + ' onchange="onCheck(this)" onclick="event.stopPropagation()"/>' +
+      '<div class="email-avatar" style="background:' + avatarColor + '20;color:' + avatarColor + '">' + initial + '</div>' +
+      '<div class="email-body">' +
+        '<div class="email-from">' + esc(email.sender_name || email.sender_email || 'Unknown') + ' <span class="domain-tag">' + esc(email.domain || '') + '</span>' + tagBadges + '</div>' +
+        '<div class="email-subject">' + esc(email.subject || '(no subject)') + (email.snippet ? ' <span style="color:var(--muted)"> \u2014 ' + esc(email.snippet) + '</span>' : '') + '</div>' +
+      '</div>' +
+      '<div class="email-meta">' +
+        '<span class="email-date">' + esc(email.date || '') + '</span>' +
+        '<span class="cat-badge cat-' + cat + '">' + (email.category || 'General') + '</span>' +
+        sugBadge +
+        (email.has_attachment ? '<span class="attach-icon">\ud83d\udcce</span>' : '') +
+        (email.unread ? '<div class="unread-dot"></div>' : '') +
+      '</div>';
+    list.appendChild(li);
+  });
+  var remaining = filteredEmails.length - _renderOffset;
+  if (remaining > 0) {
+    var wrap = document.createElement('div'); wrap.id = 'load-more-wrap';
+    wrap.style.cssText = 'padding:16px;text-align:center;border-top:1px solid var(--border)';
+    var btn = document.createElement('button'); btn.className = 'btn btn-ghost';
+    btn.textContent = '\u2b07 Load ' + Math.min(remaining, RENDER_PAGE) + ' more (' + _renderOffset + '/' + filteredEmails.length + ')';
+    btn.onclick = _appendEmailRows;
+    wrap.appendChild(btn); list.after(wrap);
+  }
+}
+
+// ── Sidebar ──
+function updateSidebar(data) {
+  var stats = data.stats || {}; var byCat = stats.by_category || {};
+  document.getElementById('fc-all').textContent = stats.total || 0;
+  document.getElementById('fc-unread').textContent = stats.unread || 0;
+  document.getElementById('fc-attachment').textContent = allEmails.filter(function(e) { return e.has_attachment; }).length;
+  document.getElementById('fc-no-attachment').textContent = allEmails.filter(function(e) { return !e.has_attachment; }).length;
+  ['Newsletter','Promotional','Social','Campaign','Notification','Transactional','Spam','General'].forEach(function(cat) {
+    var el = document.getElementById('fc-' + cat); if (el) el.textContent = byCat[cat] || 0;
+  });
+  // Always render custom category buttons in sidebar
+  var customCatList = document.getElementById('custom-cats-sidebar');
+  customCatList.innerHTML = '';
+  (_customCategories || []).forEach(function(cat) {
+    var btn = document.createElement('button');
+    btn.className = 'filter-btn custom-cat-btn';
+    btn.onclick = function() { setFilter(cat, btn); };
+    btn.innerHTML = '<div class="filter-icon" style="background:rgba(124,92,255,.15);color:#7c5cff">&#x1f4c2;</div>' + esc(cat) + '<span class="filter-count">' + (byCat[cat] || 0) + '</span>';
+    customCatList.appendChild(btn);
+  });
+  var byDomain = stats.by_domain || {};
+  _allDomainEntries = Object.entries(byDomain);
+  document.getElementById('domain-total-count').textContent = '(' + _allDomainEntries.length + ')';
+  sortAndRenderDomains();
+}
+function sortAndRenderDomains() {
+  var entries = _allDomainEntries.slice();
+  var q = document.getElementById('domain-search').value.toLowerCase();
+  if (q) entries = entries.filter(function(e) { return e[0].includes(q); });
+  if (_domainSort === 'count-desc') entries.sort(function(a,b) { return b[1] - a[1]; });
+  else if (_domainSort === 'count-asc') entries.sort(function(a,b) { return a[1] - b[1]; });
+  else entries.sort(function(a,b) { return a[0].localeCompare(b[0]); });
+  _renderDomainButtons(entries);
+}
+function setDomainSort(sort, btn) { _domainSort = sort; document.querySelectorAll('.domain-sort-btn').forEach(function(b) { b.classList.remove('active'); }); if (btn) btn.classList.add('active'); sortAndRenderDomains(); }
+function _renderDomainButtons(entries) {
+  var dl = document.getElementById('domain-list'); dl.innerHTML = '';
+  entries.forEach(function(entry) {
+    var domain = entry[0], count = entry[1];
+    var row = document.createElement('div'); row.className = 'domain-row'; row.dataset.domain = domain;
+    var chk = document.createElement('input'); chk.type = 'checkbox'; chk.dataset.domain = domain;
+    chk.onclick = function(e) { e.stopPropagation(); onDomainCheck(); };
+    var icon = document.createElement('div'); icon.className = 'filter-icon';
+    icon.style.cssText = 'background:' + stringToColor(domain) + '20;color:' + stringToColor(domain) + ';font-size:10px;font-weight:700;width:20px;height:20px;min-width:20px';
+    icon.textContent = domain[0].toUpperCase();
+    var name = document.createElement('span'); name.className = 'domain-name'; name.textContent = domain;
+    var cnt = document.createElement('span'); cnt.className = 'filter-count'; cnt.textContent = count;
+    row.appendChild(chk); row.appendChild(icon); row.appendChild(name); row.appendChild(cnt);
+    row.onclick = function(e) {
+      if (e.target.type === 'checkbox') return;
+      document.querySelectorAll('#sidebar .filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.domain-row').forEach(function(r) { r.classList.remove('active'); });
+      row.classList.add('active'); currentFilter = 'domain:' + domain; clearSelection(); applyFilter();
+    };
+    dl.appendChild(row);
+  });
+}
+function filterDomainList() { sortAndRenderDomains(); }
+function getCheckedDomains() { return Array.from(document.querySelectorAll('#domain-list input[type="checkbox"]:checked')).map(function(c) { return c.dataset.domain; }); }
+function onDomainCheck() {
+  var checked = getCheckedDomains();
+  var all = document.querySelectorAll('#domain-list input[type="checkbox"]');
+  var mc = document.getElementById('domain-select-all-chk');
+  if (all.length > 0 && checked.length === all.length) { mc.checked = true; mc.indeterminate = false; }
+  else if (checked.length > 0) { mc.checked = false; mc.indeterminate = true; }
+  else { mc.checked = false; mc.indeterminate = false; }
+  // Reset single-domain filter so checkboxes combine properly
+  if (currentFilter.startsWith('domain:') || currentFilter.startsWith('ld:')) {
+    currentFilter = 'all';
+    document.querySelectorAll('#sidebar .filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.domain-row').forEach(function(r) { r.classList.remove('active'); });
+    document.getElementById('filter-all').classList.add('active');
+  }
+  clearSelection(); applyFilter();
+}
+function toggleSelectAllDomains(checked) {
+  document.querySelectorAll('#domain-list input[type="checkbox"]').forEach(function(c) { c.checked = checked; });
+  document.getElementById('domain-select-all-chk').indeterminate = false; applyFilter();
+}
+
+// ── Selection ──
+function onCheck(chk) {
+  var id = chk.dataset.id; var row = chk.closest('.email-row');
+  if (chk.checked) { _selectedIds.add(id); row.classList.add('selected'); }
+  else { _selectedIds.delete(id); row.classList.remove('selected'); _selectAllFilteredMode = false; }
+  updateSelectionUI();
+}
+function toggleSelectAllPage(checked) {
+  _selectAllFilteredMode = false;
+  document.querySelectorAll('#email-list input[type="checkbox"]').forEach(function(chk) {
+    chk.checked = checked;
+    if (checked) { _selectedIds.add(chk.dataset.id); chk.closest('.email-row').classList.add('selected'); }
+    else { _selectedIds.delete(chk.dataset.id); chk.closest('.email-row').classList.remove('selected'); }
+  });
+  if (!checked) _selectedIds.clear();
+  updateSelectionUI();
+}
+function selectAllFiltered() {
+  _selectAllFilteredMode = true; _selectedIds.clear();
+  filteredEmails.forEach(function(e) { _selectedIds.add(e.id); });
+  document.querySelectorAll('#email-list input[type="checkbox"]').forEach(function(chk) { chk.checked = true; chk.closest('.email-row').classList.add('selected'); });
+  updateSelectionUI();
+}
+function clearSelection() {
+  _selectAllFilteredMode = false; _selectedIds.clear();
+  document.querySelectorAll('#email-list input[type="checkbox"]').forEach(function(chk) { chk.checked = false; chk.closest('.email-row').classList.remove('selected'); });
+  document.getElementById('select-all').checked = false; updateSelectionUI();
+}
+function selectByDomain() {
+  var doms = new Set();
+  _selectedIds.forEach(function(id) { var e = allEmails.find(function(e) { return e.id === id; }); if (e) doms.add(e.domain); });
+  if (doms.size === 0) { toast('Select at least one email first', 'error'); return; }
+  filteredEmails.forEach(function(e) { if (doms.has(e.domain)) _selectedIds.add(e.id); });
+  document.querySelectorAll('#email-list input[type="checkbox"]').forEach(function(chk) { if (_selectedIds.has(chk.dataset.id)) { chk.checked = true; chk.closest('.email-row').classList.add('selected'); } });
+  toast('Selected all from ' + doms.size + ' domain(s)', 'success'); updateSelectionUI();
+}
+function selectByCategory() {
+  var cats = new Set();
+  _selectedIds.forEach(function(id) { var e = allEmails.find(function(e) { return e.id === id; }); if (e) cats.add(e.category || 'General'); });
+  if (cats.size === 0) { toast('Select at least one email first', 'error'); return; }
+  filteredEmails.forEach(function(e) { if (cats.has(e.category || 'General')) _selectedIds.add(e.id); });
+  document.querySelectorAll('#email-list input[type="checkbox"]').forEach(function(chk) { if (_selectedIds.has(chk.dataset.id)) { chk.checked = true; chk.closest('.email-row').classList.add('selected'); } });
+  toast('Selected all in ' + Array.from(cats).join(', '), 'success'); updateSelectionUI();
+}
+function selectSuggested() {
+  if (_suggestedIds.size === 0) { toast('No suggestions yet — delete some emails first to build patterns', 'error'); return; }
+  _suggestedIds.forEach(function(id) { _selectedIds.add(id); });
+  document.querySelectorAll('#email-list input[type="checkbox"]').forEach(function(chk) { if (_selectedIds.has(chk.dataset.id)) { chk.checked = true; chk.closest('.email-row').classList.add('selected'); } });
+  toast('Selected ' + _suggestedIds.size + ' suggested emails', 'success'); updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  var n = _selectedIds.size;
+  document.getElementById('st-selected').textContent = n;
+  document.getElementById('selected-count').textContent = n + ' selected';
+  document.getElementById('selected-count').classList.toggle('show', n > 0);
+  document.getElementById('delete-btn').disabled = n === 0;
+  document.getElementById('bulk-bar').classList.toggle('show', n > 0);
+  document.getElementById('bulk-label').textContent = n + ' selected';
+  var banner = document.getElementById('select-all-banner');
+  var bannerText = document.getElementById('banner-text');
+  var bannerAction = document.getElementById('banner-action');
+  var vc = document.querySelectorAll('#email-list input[type="checkbox"]:checked').length;
+  var vt = document.querySelectorAll('#email-list input[type="checkbox"]').length;
+  if (_selectAllFilteredMode) {
+    banner.classList.add('show');
+    bannerText.innerHTML = 'All <b>' + filteredEmails.length + '</b> matching emails selected.';
+    bannerAction.textContent = 'Clear'; bannerAction.style.display = ''; bannerAction.onclick = clearSelection;
+  } else if (vt > 0 && vc === vt && filteredEmails.length > vt) {
+    banner.classList.add('show');
+    bannerText.innerHTML = 'All <b>' + vc + '</b> on page selected.';
+    bannerAction.innerHTML = 'Select all <b>' + filteredEmails.length + '</b>'; bannerAction.style.display = ''; bannerAction.onclick = selectAllFiltered;
+  } else { banner.classList.remove('show'); }
+}
+
+// ── Delete ──
+async function deleteSelected() {
+  var ids = Array.from(_selectedIds).filter(Boolean);
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' email(s)? They will be moved to Trash.\nNote: Emails tagged as important/keep will be protected.')) return;
+  var btn = document.getElementById('delete-btn'); btn.disabled = true; btn.textContent = 'Deleting...';
+  try {
+    var r = await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ thread_ids: ids }) });
+    var d = await r.json();
+    var msg = 'Moved ' + d.deleted + ' email(s) to Trash';
+    if (d.blocked && d.blocked > 0) msg += ' (' + d.blocked + ' protected by tags)';
+    toast(msg, 'success');
+    var delSet = new Set(d.deleted_ids || []);
+    allEmails = allEmails.filter(function(e) { return !delSet.has(e.id); });
+    // Clean up tags for deleted emails
+    delSet.forEach(function(id) { delete _emailTags[id]; });
+    _tagSummary = {};
+    Object.values(_emailTags).forEach(function(tags) { tags.forEach(function(t) { _tagSummary[t] = (_tagSummary[t] || 0) + 1; }); });
+    clearSelection(); applyFilter();
+    setTimeout(function() { loadSuggestions(); loadLDGroups(); updateSidebar({ stats: rebuildStats() }); updateTagSidebar(); }, 500);
+  } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
+  finally { btn.textContent = '\ud83d\uddd1 Delete'; updateSelectionUI(); }
+}
+
+async function emptyTrash() {
+  if (!confirm('Permanently delete ALL emails in Trash? This cannot be undone.')) return;
+  var btn = document.getElementById('trash-btn');
+  btn.disabled = true; btn.textContent = 'Emptying...';
+  try {
+    var r = await fetch('/api/empty_trash', { method: 'POST' });
+    var d = await r.json();
+    if (d.message) { toast('Trash emptied successfully!', 'success'); }
+    else { toast('Error: ' + (d.detail || 'unknown'), 'error'); }
+  } catch (e) { toast('Failed: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '\ud83d\uddd1 Empty Trash'; }
+}
+
+function closeSuggestionBar() {
+  document.getElementById('suggestion-bar').classList.remove('show');
+}
+
+function rebuildStats() {
+  var byCat = {}, byDom = {}, unread = 0;
+  allEmails.forEach(function(e) {
+    var cat = e.category || 'General';
+    var dom = e.domain || 'unknown';
+    byCat[cat] = (byCat[cat] || 0) + 1;
+    byDom[dom] = (byDom[dom] || 0) + 1;
+    if (e.unread) unread++;
+  });
+  return { total: allEmails.length, unread: unread, by_category: byCat, by_domain: byDom };
+}
+
+// ── AI Panel ──
+function toggleAIPanel() {
+  _aiPanelOpen = !_aiPanelOpen;
+  var shell = document.getElementById('app-shell');
+  shell.classList.toggle('ai-closed', !_aiPanelOpen);
+  document.getElementById('ai-toggle').classList.toggle('show', !_aiPanelOpen);
+}
+function askQuestion(q) {
+  document.getElementById('ai-input').value = q;
+  sendAI();
+}
+async function sendAI() {
+  var input = document.getElementById('ai-input');
+  var q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  var msgs = document.getElementById('ai-messages');
+  // User message
+  var userDiv = document.createElement('div'); userDiv.className = 'ai-msg user'; userDiv.textContent = q;
+  msgs.appendChild(userDiv);
+  // Bot typing
+  var botDiv = document.createElement('div'); botDiv.className = 'ai-msg bot';
+  botDiv.innerHTML = '<span class="typing">Thinking...</span>';
+  msgs.appendChild(botDiv);
+  msgs.scrollTop = msgs.scrollHeight;
+  try {
+    var r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) });
+    var d = await r.json();
+    var answer = d.answer || d.error || 'No response.';
+    botDiv.textContent = answer;
+    // Add interactive action buttons
+    var actions = buildAIActions(q, answer);
+    if (actions) { botDiv.appendChild(actions); }
+  } catch (e) { botDiv.textContent = 'Error: ' + e.message; }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Build action buttons based on the AI query/answer context
+function buildAIActions(query, answer) {
+  var q = query.toLowerCase();
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px';
+
+  // Extract search terms for "show in list" functionality
+  var searchTerms = extractSearchTerms(q);
+
+  // Find matching emails for the query
+  var matchingEmails = [];
+  if (searchTerms.length > 0) {
+    matchingEmails = allEmails.filter(function(e) {
+      var text = ((e.sender_name||'')+ ' ' +(e.sender_email||'')+ ' ' +(e.domain||'')+ ' ' +(e.subject||'')+ ' ' +(e.snippet||'')).toLowerCase();
+      return searchTerms.some(function(t) { return text.includes(t); });
+    });
+  }
+
+  // Category-specific actions
+  var catMatch = null;
+  ['spam','newsletter','promotional','campaign','social','notification','transactional','general'].forEach(function(cat) {
+    if (q.includes(cat)) catMatch = cat.charAt(0).toUpperCase() + cat.slice(1);
+  });
+  if (catMatch) {
+    addActionBtn(wrap, '\ud83d\udcca Show ' + catMatch, function() {
+      setFilter(catMatch, document.querySelector('#sidebar .filter-btn'));
+      document.querySelectorAll('#sidebar .filter-btn').forEach(function(b) {
+        if (b.textContent.includes(catMatch)) { b.classList.add('active'); } else { b.classList.remove('active'); }
+      });
+    });
+    addActionBtn(wrap, '\u2611 Select All ' + catMatch, function() {
+      setFilter(catMatch, null);
+      setTimeout(selectAllFiltered, 100);
+    });
+  }
+
+  // Domain-specific actions
+  var domainMatch = null;
+  if (q.includes('domain')) {
+    // Try to find a domain in the query
+    var words = q.split(/\s+/);
+    words.forEach(function(w) { if (w.includes('.') && w.length > 3 && !w.startsWith('http')) domainMatch = w; });
+  }
+  if (domainMatch) {
+    addActionBtn(wrap, '\ud83d\udcca Show ' + domainMatch, function() {
+      currentFilter = 'domain:' + domainMatch;
+      clearSelection(); applyFilter();
+    });
+  }
+
+  // Search-based actions
+  if (matchingEmails.length > 0) {
+    addActionBtn(wrap, '\ud83d\udd0d Show in List (' + matchingEmails.length + ')', function() {
+      document.getElementById('search-input').value = searchTerms.join(' ');
+      searchQuery = searchTerms.join(' ').toLowerCase();
+      currentFilter = 'all';
+      document.querySelectorAll('#sidebar .filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('filter-all').classList.add('active');
+      clearSelection(); applyFilter();
+    });
+    addActionBtn(wrap, '\u2611 Select All (' + matchingEmails.length + ')', function() {
+      document.getElementById('search-input').value = searchTerms.join(' ');
+      searchQuery = searchTerms.join(' ').toLowerCase();
+      currentFilter = 'all';
+      clearSelection(); applyFilter();
+      setTimeout(selectAllFiltered, 100);
+    });
+    addActionBtn(wrap, '\ud83d\uddd1 Delete All (' + matchingEmails.length + ')', function() {
+      document.getElementById('search-input').value = searchTerms.join(' ');
+      searchQuery = searchTerms.join(' ').toLowerCase();
+      currentFilter = 'all';
+      clearSelection(); applyFilter();
+      setTimeout(function() { selectAllFiltered(); deleteSelected(); }, 100);
+    });
+  }
+
+  // Cleanup suggestions
+  if (q.includes('clean') || q.includes('suggest') || q.includes('delete')) {
+    if (_suggestedIds.size > 0) {
+      addActionBtn(wrap, '\ud83e\udde0 Show Suggested', function() {
+        setFilter('suggested', document.getElementById('filter-suggested'));
+      });
+      addActionBtn(wrap, '\u2611 Select Suggested', selectSuggested);
+    }
+  }
+
+  // General useful actions
+  if (answer.includes('Top senders') || answer.includes('Top domains')) {
+    addActionBtn(wrap, '\ud83d\udd04 Refresh', function() { refreshEmails(); });
+  }
+
+  return wrap.children.length > 0 ? wrap : null;
+}
+
+function addActionBtn(wrap, label, onclick) {
+  var btn = document.createElement('button');
+  btn.style.cssText = 'padding:3px 8px;font-size:10px;font-family:var(--mono);background:rgba(79,125,255,.12);border:1px solid rgba(79,125,255,.3);border-radius:4px;color:var(--accent);cursor:pointer;transition:all .15s ease';
+  btn.textContent = label;
+  btn.onmouseover = function() { btn.style.background = 'rgba(79,125,255,.25)'; };
+  btn.onmouseout = function() { btn.style.background = 'rgba(79,125,255,.12)'; };
+  btn.onclick = onclick;
+  wrap.appendChild(btn);
+}
+
+function extractSearchTerms(query) {
+  var noise = ['show','find','search','get','list','all','mails','mail','emails','email',
+    'that','contains','containing','with','from','the','me','my','about','tell',
+    'how','many','what','which','where','who','do','have','has','are','is','a','an'];
+  var words = query.toLowerCase().replace(/[^a-z0-9@.\s-]/g, '').split(/\s+/);
+  return words.filter(function(w) { return w.length > 1 && !noise.includes(w); });
+}
+
+// ── Helpers ──
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function stringToColor(str) { var hash = 0; for (var i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash); var colors = ['#4f7dff','#7c5cff','#ff9a3c','#20d5c4','#3ecf8e','#f0c040','#ff5fa0','#ff4f4f']; return colors[Math.abs(hash) % colors.length]; }
+var toastTimer;
+function toast(msg, type) { type = type || ''; var el = document.getElementById('toast'); el.textContent = msg; el.className = 'show ' + type; clearTimeout(toastTimer); toastTimer = setTimeout(function() { el.className = ''; }, 3200); }
+
+// ── Email modal ──
+async function openEmail(email) {
+  _activeEmailId = email.id;
+  document.getElementById('email-modal').style.display = 'flex';
+  document.getElementById('modal-subject').textContent = email.subject || '(no subject)';
+  document.getElementById('modal-from').textContent = email.sender_name ? (email.sender_name + ' <' + email.sender_email + '>') : (email.sender_email || '');
+  document.getElementById('modal-to').textContent = '';
+  document.getElementById('modal-date').textContent = email.date || '';
+  document.getElementById('modal-body').textContent = 'Loading...';
+  document.getElementById('modal-body').style.display = '';
+  document.getElementById('modal-body-iframe').style.display = 'none';
+  try {
+    var r = await fetch('/api/email_body?id=' + encodeURIComponent(email.id));
+    var d = await r.json();
+    if (_activeEmailId !== email.id) return;
+    if (d.error) { document.getElementById('modal-body').textContent = d.error; }
+    else if (d.body_html) {
+      // Render HTML email in sandboxed iframe
+      document.getElementById('modal-body').style.display = 'none';
+      var iframe = document.getElementById('modal-body-iframe');
+      iframe.style.display = '';
+      iframe.srcdoc = d.body_html;
+      // Auto-resize iframe to content height
+      iframe.onload = function() {
+        try {
+          var h = iframe.contentDocument.documentElement.scrollHeight;
+          iframe.style.height = Math.min(Math.max(h + 20, 300), 2000) + 'px';
+        } catch(e) {}
+      };
+      document.getElementById('modal-to').textContent = d.to || '';
+    } else {
+      document.getElementById('modal-to').textContent = d.to || '';
+      document.getElementById('modal-body').textContent = d.body || '(empty)';
+    }
+  } catch (e) { if (_activeEmailId !== email.id) return; document.getElementById('modal-body').textContent = 'Failed: ' + e.message; }
+}
+function closeEmail() {
+  document.getElementById('email-modal').style.display = 'none';
+  _activeEmailId = null;
+  document.getElementById('modal-body').style.display = '';
+  var iframe = document.getElementById('modal-body-iframe');
+  iframe.style.display = 'none';
+  iframe.srcdoc = '';
+}
+
+// ── Tag functions ─────────────────────────────────────────────────────────────
+async function tagSelected(tag) {
+  var ids = Array.from(_selectedIds).filter(Boolean);
+  if (!ids.length) { toast('Select emails to tag', 'error'); return; }
+  try {
+    var r = await fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email_ids: ids, tag: tag, action: 'add' }) });
+    var d = await r.json();
+    _emailTags = d.tags || _emailTags;
+    _tagSummary = d.tag_summary || _tagSummary;
+    updateTagSidebar();
+    applyFilter();
+    toast('Tagged ' + ids.length + ' email(s) as ' + tag, 'success');
+  } catch (e) { toast('Tag failed: ' + e.message, 'error'); }
+  hideTagMenu();
+}
+
+async function removeTagFromEmail(emailId, tag) {
+  try {
+    var r = await fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email_ids: [emailId], tag: tag, action: 'remove' }) });
+    var d = await r.json();
+    _emailTags = d.tags || _emailTags;
+    _tagSummary = d.tag_summary || _tagSummary;
+    updateTagSidebar();
+    applyFilter();
+    toast('Removed tag: ' + tag, 'success');
+  } catch (e) { toast('Remove tag failed: ' + e.message, 'error'); }
+}
+
+function updateTagSidebar() {
+  var summary = _tagSummary || {};
+  var el = document.getElementById('fc-tag-important'); if (el) el.textContent = summary['important'] || 0;
+  el = document.getElementById('fc-tag-keep'); if (el) el.textContent = summary['keep'] || 0;
+  el = document.getElementById('fc-tag-spam'); if (el) el.textContent = summary['spam'] || 0;
+  var totalTags = Object.values(summary).reduce(function(a,b) { return a + b; }, 0);
+  document.getElementById('tag-total').textContent = totalTags > 0 ? ' (' + totalTags + ')' : '';
+
+  // Render custom tag filters
+  var customList = document.getElementById('custom-tags-list');
+  customList.innerHTML = '';
+  (_allTags || []).forEach(function(t) {
+    if (t === 'important' || t === 'keep' || t === 'spam') return;
+    var btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.onclick = function() { setFilter('tag:' + t, btn); };
+    btn.innerHTML = '<div class="filter-icon" style="background:rgba(124,92,255,.15);color:#7c5cff">&#x1f3f7;</div>' + esc(t) + '<span class="filter-count">' + (summary[t] || 0) + '</span>';
+    customList.appendChild(btn);
+  });
+}
+
+function showTagMenu(event) {
+  event.stopPropagation();
+  var menu = document.getElementById('tag-context-menu');
+  menu.style.display = 'block';
+  menu.style.left = Math.min(event.clientX, window.innerWidth - 200) + 'px';
+  menu.style.top = Math.max(event.clientY - 200, 10) + 'px';
+  // Render custom tags in menu
+  var customItems = document.getElementById('custom-tag-menu-items');
+  customItems.innerHTML = '';
+  (_allTags || []).forEach(function(t) {
+    if (t === 'important' || t === 'keep' || t === 'spam') return;
+    var div = document.createElement('div');
+    div.className = 'move-item';
+    div.textContent = '🏷 ' + t;
+    div.onclick = function() { tagSelected(t); };
+    customItems.appendChild(div);
+  });
+  setTimeout(function() { document.addEventListener('click', hideTagMenu, { once: true }); }, 10);
+}
+function hideTagMenu() { document.getElementById('tag-context-menu').style.display = 'none'; }
+
+function createAndApplyTag() {
+  var input = document.getElementById('new-tag-input');
+  var name = input.value.trim();
+  if (!name) return;
+  input.value = '';
+  if (_allTags.indexOf(name) < 0) _allTags.push(name);
+  tagSelected(name);
+}
+
+async function createTagFromSidebar() {
+  var input = document.getElementById('sidebar-new-tag');
+  var name = input.value.trim();
+  if (!name) return;
+  input.value = '';
+  if (_allTags.indexOf(name) < 0) {
+    _allTags.push(name);
+    updateTagSidebar();
+    toast('Tag "' + name + '" created — select emails and use the Tag button to apply it', 'success');
+  } else {
+    toast('Tag "' + name + '" already exists', 'error');
+  }
+}
+
+async function createCategoryFromSidebar() {
+  var input = document.getElementById('sidebar-new-cat');
+  var name = input.value.trim();
+  if (!name) return;
+  input.value = '';
+  try {
+    var r = await fetch('/api/categories/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
+    var d = await r.json();
+    if (d.detail) { toast(d.detail, 'error'); return; }
+    if (d.custom_categories) _customCategories = d.custom_categories;
+    updateSidebar({ stats: rebuildStats() });
+    toast('Category "' + name + '" created', 'success');
+  } catch (e) { toast('Create category failed: ' + e.message, 'error'); }
+}
+
+// ── Move to category ──────────────────────────────────────────────────────────
+function toggleMoveMenu() {
+  var menu = document.getElementById('move-menu');
+  var isOpen = menu.classList.contains('show');
+  menu.classList.toggle('show');
+  if (!isOpen) {
+    renderMoveMenu();
+    setTimeout(function() { document.addEventListener('click', closeMoveMenu, { once: true }); }, 10);
+  }
+}
+function closeMoveMenu() { document.getElementById('move-menu').classList.remove('show'); }
+
+function renderMoveMenu() {
+  var list = document.getElementById('move-cat-list');
+  list.innerHTML = '';
+  var cats = ['Newsletter', 'Promotional', 'Social', 'Campaign', 'Notification', 'Transactional', 'Spam', 'General'];
+  cats = cats.concat(_customCategories || []);
+  cats.forEach(function(cat) {
+    var div = document.createElement('div');
+    div.className = 'move-item';
+    div.textContent = cat;
+    div.onclick = function() { moveSelectedToCategory(cat); };
+    list.appendChild(div);
+  });
+}
+
+async function moveSelectedToCategory(category) {
+  var ids = Array.from(_selectedIds).filter(Boolean);
+  if (!ids.length) { toast('Select emails to move', 'error'); return; }
+  closeMoveMenu();
+  try {
+    var r = await fetch('/api/categories/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email_ids: ids, category: category }) });
+    var d = await r.json();
+    // Update local data
+    ids.forEach(function(id) {
+      var email = allEmails.find(function(e) { return e.id === id; });
+      if (email) email.category = category;
+    });
+    clearSelection();
+    updateSidebar({ stats: rebuildStats() });
+    applyFilter();
+    toast('Moved ' + ids.length + ' email(s) to ' + category, 'success');
+  } catch (e) { toast('Move failed: ' + e.message, 'error'); }
+}
+
+async function createAndMoveCategory() {
+  var input = document.getElementById('new-cat-input');
+  var name = input.value.trim();
+  if (!name) return;
+  input.value = '';
+  try {
+    var r = await fetch('/api/categories/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
+    var d = await r.json();
+    if (d.custom_categories) _customCategories = d.custom_categories;
+    renderMoveMenu();
+    moveSelectedToCategory(name);
+  } catch (e) { toast('Create category failed: ' + (e.message || 'error'), 'error'); }
+}
+
+// ── Account functions ─────────────────────────────────────────────────────────
+function toggleAccountMenu() {
+  var menu = document.getElementById('account-menu');
+  menu.classList.toggle('show');
+  if (menu.classList.contains('show')) {
+    setTimeout(function() { document.addEventListener('click', closeAccountMenu, { once: true }); }, 10);
+  }
+}
+function closeAccountMenu() { document.getElementById('account-menu').classList.remove('show'); }
+
+function updateAccountMenu() {
+  var list = document.getElementById('account-list');
+  if (!list) return;
+  list.innerHTML = '';
+  (_accounts || []).forEach(function(a) {
+    var div = document.createElement('div');
+    div.className = 'account-item' + (a.active ? ' active' : '');
+    div.innerHTML = (a.active ? '<div class="dot-active"></div>' : '<div style="width:6px"></div>') + '<span>' + esc(a.email) + '</span>';
+    div.onclick = function() { if (!a.active) switchToAccount(a.email); };
+    list.appendChild(div);
+  });
+}
+
+async function switchToAccount(email) {
+  closeAccountMenu();
+  toast('Switching to ' + email + '...', 'success');
+  try {
+    var r = await fetch('/api/accounts/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) });
+    var d = await r.json();
+    _accounts = d.accounts || _accounts;
+    allEmails = [];
+    filteredEmails = [];
+    updateAccountMenu();
+    document.getElementById('account-btn').innerHTML = '&#x1f464; ' + email.split('@')[0];
+    setStatusDot('green', email);
+    fetchEmails(true);
+  } catch (e) { toast('Switch failed: ' + e.message, 'error'); }
+}
+
+function showAddAccountModal() {
+  closeAccountMenu();
+  document.getElementById('add-account-modal').style.display = 'flex';
+  document.getElementById('add-acct-email').value = '';
+  document.getElementById('add-acct-password').value = '';
+  document.getElementById('add-acct-msg').textContent = '';
+}
+function closeAddAccount() { document.getElementById('add-account-modal').style.display = 'none'; }
+
+async function addAccount() {
+  var emailVal = document.getElementById('add-acct-email').value.trim();
+  var passVal = document.getElementById('add-acct-password').value.trim();
+  var btn = document.getElementById('add-acct-btn');
+  var msg = document.getElementById('add-acct-msg');
+  if (!emailVal || !passVal) { msg.textContent = 'Both fields required'; return; }
+  btn.disabled = true; btn.textContent = 'Verifying...'; msg.textContent = '';
+  try {
+    var r = await fetch('/api/accounts/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailVal, password: passVal }) });
+    var d = await r.json();
+    if (d.accounts) {
+      _accounts = d.accounts;
+      updateAccountMenu();
+      closeAddAccount();
+      toast('Account added: ' + emailVal, 'success');
+    } else {
+      msg.textContent = d.detail || 'Failed to add account';
+    }
+  } catch (e) { msg.textContent = 'Error: ' + e.message; }
+  finally { btn.disabled = false; btn.textContent = 'Verify & Add Account'; }
+}
+</script>
+
+<div id="email-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeEmail()">
+  <div class="modal">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeEmail()">&#215;</button>
+      <h3 id="modal-subject">Loading...</h3>
+      <div class="modal-meta">
+        <span><b>From:</b> <span id="modal-from"></span></span>
+        <span><b>To:</b> <span id="modal-to"></span></span>
+        <span><b>Date:</b> <span id="modal-date"></span></span>
+      </div>
+    </div>
+    <div class="modal-body" id="modal-body">Loading...</div>
+    <iframe id="modal-body-iframe" sandbox="allow-same-origin" style="display:none;width:100%;border:none;flex:1;min-height:300px;background:#fff" title="Email content"></iframe>
+  </div>
+</div>
+
+<div id="add-account-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAddAccount()">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeAddAccount()">&#215;</button>
+      <h3>Add Gmail Account</h3>
+      <div class="modal-meta"><span style="font-size:12px;color:var(--dim)">Enter credentials for another Gmail account</span></div>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+      <input type="email" id="add-acct-email" placeholder="your@gmail.com" style="width:100%;padding:10px 12px;margin-bottom:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;outline:none"/>
+      <input type="password" id="add-acct-password" placeholder="App Password" style="width:100%;padding:10px 12px;margin-bottom:12px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;outline:none"/>
+      <button class="btn btn-primary" onclick="addAccount()" style="width:100%;padding:12px" id="add-acct-btn">Verify &amp; Add Account</button>
+      <p id="add-acct-msg" style="margin-top:8px;font-size:12px;color:var(--dim);min-height:18px;text-align:center"></p>
+    </div>
+  </div>
+</div>
+
+<div id="tag-context-menu" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px 0;min-width:160px;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.4)">
+  <div class="move-item" onclick="tagSelected('important')">&#x2b50; Important</div>
+  <div class="move-item" onclick="tagSelected('keep')">&#x1f512; Keep</div>
+  <div class="move-item" onclick="tagSelected('spam')">&#x26a0; Spam</div>
+  <div class="account-divider"></div>
+  <div id="custom-tag-menu-items"></div>
+  <div class="move-create" style="padding:6px 12px">
+    <input type="text" id="new-tag-input" placeholder="New tag..." style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;padding:4px 8px;outline:none" onkeydown="if(event.key==='Enter')createAndApplyTag()"/>
+    <button onclick="createAndApplyTag()" style="background:var(--accent);border:none;color:#fff;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:11px">+</button>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:16px 0 20px;color:var(--dim);font-family:var(--sans);font-size:13px;">
+  Built by <a href="https://github.com/rahul1996pp" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none;font-weight:500;">Rahul Pujari</a>
+</footer>
+
+</body>
+</html>
